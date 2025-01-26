@@ -27,19 +27,27 @@ async function applyTheme() {
     style.type  = "text/css";
     document.getElementsByTagName('head')[0].appendChild(style);
   
+    const isMobile = new URL(document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]").href).pathname == "//css/mobile.css";
+  
   
     //background color
     await (GM.getValue("theme.background", defaultColors.background)).then((bgColor)=>{
       
         style.innerHTML += `body, .awesomplete > ul {background:${bgColor}}`;
         style.innerHTML += `.current-page {background-image:none !important}`; //default background image is green
-      
+        if(isMobile) {
+            style.innerHTML += `#navbar {background: ${bgColor} !important}`;
+        }
     });
   
     //accent  
     await (GM.getValue("theme.accent", defaultColors.accent)).then((accent)=>{
         style.innerHTML += `#pageid, .manual-page-chooser > input[type="submit"]  {background-color: ${accent}}`;
-        style.innerHTML += `#subnavbar {background: ${accent} !important}`;   
+        style.innerHTML += `#subnavbar {background: ${accent} !important}`;
+        if(isMobile) {
+            style.innerHTML += `#header {background: ${accent} !important}`;
+            style.innerHTML += `#navbar li {border-color: ${accent} !important}`;
+        }
     });
   
     //classless links
@@ -73,7 +81,8 @@ async function getSettings() {
     const settings = {
         blacklist: GM.getValue("blacklist", ""),
         regexBlacklist: GM.getValue("regexBlacklist", ""),
-        //minscore: GM.getValue("minscore", "0"),
+        mobileLayout: GM.getValue("mobileLayout", true),
+        //minscore: GM.getValue("minscore", 0),
         theme: {
             background: GM.getValue("theme.background", defaultColors.background),
             accent:     GM.getValue("theme.accent", defaultColors.accent),
@@ -103,7 +112,7 @@ async function getSettings() {
 
 
 
-//create row for table to be used in settings page, near duplicate CSS to that of the standard settings page.
+//create table row to be used in settings page, nearly identical CSS to that of the standard settings page.
 function createRow(name, desc, data) {
     const row = document.createElement("tr");
     const th = document.createElement("th");
@@ -142,8 +151,8 @@ async function generateSettingsPage() {
     navbar.children[1].children[0].addEventListener("click", generateFavoritesPage); //reenable favorites link if disabled
     navbar.children[0].children[0].removeEventListener("click", generateSettingsPage);
   
-    //hide subnavbar
-    document.getElementById("subnavbar").style.display = "none";
+    //hide subnavbar if it exists
+    try {document.getElementById("subnavbar").style.display = "none";} catch {}
 
   
   
@@ -163,6 +172,21 @@ async function generateSettingsPage() {
         table.appendChild(tbody);
 
         content.appendChild(table);
+      
+      
+      
+        const generalHeader = document.createElement("tr");
+        generalHeader.style.textAlign = "center";
+        generalHeader.innerHTML = "<td colspan=2><h3>General</h3></td>";
+        tbody.appendChild(generalHeader);
+      
+        const mobileLayoutCheckbox = document.createElement("input");
+        mobileLayoutCheckbox.type = "checkbox";
+        tbody.appendChild(createRow("Mobile Layout Beta","Enable or disable mobile layout, this will only work on mobile devices.",mobileLayoutCheckbox));
+      
+        await settings.mobileLayout.then((checked) => mobileLayoutCheckbox.checked = checked); 
+      
+      
       
         const blacklistHeader = document.createElement("tr");
         blacklistHeader.style.textAlign = "center";
@@ -263,6 +287,7 @@ async function generateSettingsPage() {
         saveButton.addEventListener("click", function() {
             //array of promises so we can see if it's saved correctly
             const promises = [];
+            promises.push(GM.setValue("mobileLayout",         mobileLayoutCheckbox.checked));
             promises.push(GM.setValue("blacklist",            blacklistArea.value));
             promises.push(GM.setValue("regexBlacklist",       regexBlacklistArea.value));
           //promises.push(GM.setValue("minscore",             minscoreInput.value));
@@ -279,7 +304,7 @@ async function generateSettingsPage() {
             Promise.all(promises).then(() => {
                 notice.style.display = "unset";
                 notice.innerHTML = "Saved!";
-                applyBlacklist();
+                updateCookies();
             }).catch(() => {
                 notice.style.display = "unset";
                 notice.innerHTML = "Failed to save";
@@ -307,8 +332,8 @@ async function generateFavoritesPage() {
     navbar.children[0].children[0].addEventListener("click", generateSettingsPage); //reenable settings link if disabled
     navbar.children[1].children[0].removeEventListener("click", generateFavoritesPage);
   
-    //hide subnavbar
-    document.getElementById("subnavbar").style.display = "none";
+    //hide subnavbar if it exists
+    try {document.getElementById("subnavbar").style.display = "none";} catch {}
 
   
   
@@ -316,7 +341,7 @@ async function generateFavoritesPage() {
   
     const notice = document.getElementById("notice");
   
-    //show a blank page while we wait for GetSettings
+    //show a blank page while we wait for getSettings
     content.innerHTML = "";
     notice.style.display = "none";
     //notice.innerHTML = "";
@@ -394,9 +419,11 @@ function updateNavbar() {
     navbar.insertBefore(favoritesTab, navbar.children[1]);
 }
 
-//change blacklist cookie
-async function applyBlacklist() {
-
+//change cookies to match settings
+async function updateCookies() {
+   
+  
+    //blacklist cookie
     await GM.getValue("blacklist", "").then((blacklist) => {
         //remove comments, line breaks, and replace several spaces in a row with just a single space
         const compiled_blacklist = blacklist
@@ -405,6 +432,11 @@ async function applyBlacklist() {
             .replaceAll(/\s+/g, ' ')    //replcae multiple consecutive spaces with just one
             .trim();
         document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiled_blacklist));
+    });
+  
+  
+    await GM.getValue("mobileLayout", true).then((useMobileLayout) => {
+      document.cookie = "experiment-mobile-layout=" + useMobileLayout;
     });
 }
 
@@ -418,7 +450,8 @@ async function applyRegexBlacklist() {
                 blacklisted_regexes.push(new RegExp(entry));
         });
         for(let image of images) {
-            const tags = image.children[0].children[0].alt.trim().split(" ");
+            if (image.tagName != "SPAN") continue;
+            const tags = image.children[0].querySelector("img").alt.trim().split(" ");
             tags.forEach((tag) => {
                 for(let regex of blacklisted_regexes) {
                     if(regex.test(tag)) {
@@ -495,8 +528,8 @@ const url = new URL(window.location.href);
 
 if(url.hostname === "rule34.xxx") {
     applyTheme();
-    applyBlacklist();
-    if(url.searchParams.get("page") != null) {
+    updateCookies();
+    if(url.searchParams.get("page") !== null) {
         updateNavbar();
         if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "list") {
             applyRegexBlacklist();
