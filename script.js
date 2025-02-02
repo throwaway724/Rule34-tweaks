@@ -27,7 +27,7 @@ async function applyTheme() {
     style.type  = "text/css";
     document.getElementsByTagName('head')[0].appendChild(style);
   
-    const isMobile = new URL(document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]").href).pathname == "//css/mobile.css";
+    const isMobile = new URL(document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]").href).pathname === "//css/mobile.css";
   
   
     //background color
@@ -217,7 +217,7 @@ async function generateSettingsPage() {
         regexBlacklistArea.ariaAutoComplete = "list";
       
 
-        tbody.appendChild(createRow("Regex Tag Blacklist","Any post with a tag containing one of these regular expressions will not be shown (one expression per line, not delimited by slashes). Be careful of trailing whitespace.",regexBlacklistArea));
+        tbody.appendChild(createRow("Regex Tag Blacklist","Any post with a tag containing one of these regular expressions will not be shown (one expression per line, delimited by slashes and optionally with flags).",regexBlacklistArea));
       
         await settings.regexBlacklist.then((regexes) => regexBlacklistArea.value = regexes);
       
@@ -426,12 +426,12 @@ async function updateCookies() {
     //blacklist cookie
     await GM.getValue("blacklist", "").then((blacklist) => {
         //remove comments, line breaks, and replace several spaces in a row with just a single space
-        const compiled_blacklist = blacklist
-            .replaceAll(/^#.*$/mg, " ") //remove comments
+        const compiledBlacklist = blacklist
+            .replaceAll(/\n#.*$/mg, " ") //remove comments
             .replaceAll("\n", " ")      //remove linebreaks
-            .replaceAll(/\s+/g, ' ')    //replcae multiple consecutive spaces with just one
+            .replaceAll(/\s+/g, ' ')    //replace multiple consecutive spaces with just one
             .trim();
-        document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiled_blacklist));
+        document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiledBlacklist));
     });
   
   
@@ -442,18 +442,32 @@ async function updateCookies() {
 
 
 async function applyRegexBlacklist() {
+  
     await GM.getValue("regexBlacklist", "").then((blacklist) => {
+      
+      
+        const regexStrings = blacklist
+            .replaceAll(/\n#.*$/mg, "")           //remove comments
+            .replaceAll(/(^\s+)|(\s+$)/mg, "")    //remove whitespace before/after a regex and empty lines
+            .split("\n");                         //split by linebreaks
+
+        let blacklistedRegexes = [];
+        for(regexString of regexStrings) {
+            const pattern = regexString.slice(1, regexString.lastIndexOf('/'));
+            const flags = regexString.slice(regexString.lastIndexOf('/') + 1);
+            blacklistedRegexes.push(new RegExp(pattern, flags));
+            //console.log("pattern: " + pattern);
+            //console.log("flags: " +  flags);
+        }
+      
+      
+      
         const images = document.getElementsByClassName("image-list")[0].children;
-        let blacklisted_regexes = [];
-        blacklist.replaceAll(/^#.*$/mg, "").replaceAll(/\n{2,}/g,"\n").split("\n").forEach((entry) => {
-            if(entry != "")
-                blacklisted_regexes.push(new RegExp(entry));
-        });
         for(let image of images) {
-            if (image.tagName != "SPAN") continue;
+            if (image.tagName !== "SPAN") continue;
             const tags = image.children[0].querySelector("img").alt.trim().split(" ");
             tags.forEach((tag) => {
-                for(let regex of blacklisted_regexes) {
+                for(let regex of blacklistedRegexes) {
                     if(regex.test(tag)) {
                         console.log("Tag " + tag + " blacklisted by regex " + regex);
                         image.style.display = "none";
