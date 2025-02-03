@@ -21,6 +21,67 @@ const defaultColors = {
 }
 
 
+const filterLists = [
+    {
+        id: "unethicalGooning",
+        name: "Unethical Gooning",
+        description: "",
+        default: true,
+        blacklist: ["rape", "questionable_consent", "imminent_rape", "implied_rape", "struggling", "aged_up", "ai_generated", "ai_assisted", "pixai", "incest", "imminent_incest", "implied_incest", "real_person", "jaiden_animations", "jaiden", "virtual_youtuber"],
+        regexBlacklist: [/(\b|_|[0-9]+)(rape|incest|ai)(\b|_|[0-9]+)/]
+    },
+    {
+        id: "maleOnly",
+        name: "Male Only",
+        description: "Posts exclusively containing men, or depicting gay men",
+        default: false,
+        blacklist: ["gay", "male_only"],
+        regexBlacklist: []
+    },
+    {
+        id: "male",
+        name: "Male",
+        description: "Any post involving men, including heterosexual contexts",
+        default: false,
+        blacklist: ["penis"],
+        regexBlacklist: [/(\b|_|[0-9]+)(penis(es)?|gay|dicks?|cocks?|males?|boys?)(\b|_|[0-9]+)/]
+    },
+    {
+        id: "femaleOnly",
+        name: "Female Only",
+        description: "Posts exclusively containing women or depicting lesbians",
+        default: false,
+        blacklist: ["female_only", "lesbian"],
+        regexBlacklist: []
+    },
+    {
+        id: "female",
+        name: "Female",
+        description: "Any post involving a woman, including heterosexual contexts",
+        default: false,
+        blacklist: ["pussy", "1girls", "2girls", "1boy1girl", "female_only"],
+        regexBlacklist: [/(\b|_|[0-9]+)(vaginal?|pussy|females?|girls?|woman|women)(\b|_|[0-9]+)/]
+    },
+    {
+        id: "furry",
+        name: "Furry",
+        description: "",
+        default: false,
+        blacklist: ["fur", "furry", "yiff", "anthro", "paws", "canine"],
+        regexBlacklist: []
+    },
+    {
+        id: "weirdFetishes",
+        name: "Weird Fetishes",
+        description: "",
+        default: true,
+        blacklist: ["piss", "pissing", "shit", "shitting", "urine", "urinating", "urination", "pee", "peeing", "scat", "cockroach", "vore", "futa", "futanari"],
+        regexBlacklist: [/(\b|_|[0-9]+)(piss(ing)?|shit(ting)?|urin(e|ating|ation)|pee(ing)?|scat|vore|futas?)(\b|_|[0-9]+)/]
+    }
+];
+
+
+
 async function applyTheme() {
   
     const style = document.createElement("style");
@@ -83,6 +144,8 @@ async function getSettings() {
         regexBlacklist: GM.getValue("regexBlacklist", ""),
         mobileLayout: GM.getValue("mobileLayout", true),
         //minscore: GM.getValue("minscore", 0),
+      
+        filterLists: [],
         theme: {
             background: GM.getValue("theme.background", defaultColors.background),
             accent:     GM.getValue("theme.accent", defaultColors.accent),
@@ -98,7 +161,20 @@ async function getSettings() {
         }
     };
   
+    for(item of filterLists) {
+        settings.filterLists.push({
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            enabled: GM.getValue("settings.filterLists." + item.id, item.default)
+        });
+    }
+  
+    //console.log(settings.filterLists);
+  
+  
     await Promise.all(Object.values(settings)
+        .concat(settings.filterLists.map(obj => obj.enabled))
         .concat(Object.values(settings.theme))
         .concat(Object.values(settings.theme.tags))
     );
@@ -221,6 +297,21 @@ async function generateSettingsPage() {
       
         await settings.regexBlacklist.then((regexes) => regexBlacklistArea.value = regexes);
       
+        const filterListsHeader = document.createElement("tr");
+        filterListsHeader.style.textAlign = "center";
+        filterListsHeader.innerHTML = "<td colspan=2><h4>Filter Lists</h4></td>";
+        tbody.appendChild(filterListsHeader);
+      
+        const filterCheckboxes = [];
+        for(item of settings.filterLists) {
+            const checkbox = document.createElement("input");
+            filterCheckboxes.push({checkbox: checkbox, id: item.id});
+            checkbox.type = "checkbox";
+            checkbox.checked = await item.enabled;
+            tbody.appendChild(createRow(item.name, item.description, checkbox));
+        }
+
+      
         /**
         const minscoreInput = document.createElement("input");
         minscoreInput.type = "text";
@@ -285,6 +376,7 @@ async function generateSettingsPage() {
         saveButton.innerHTML = "Save";
       
         saveButton.addEventListener("click", function() {
+          
             //array of promises so we can see if it's saved correctly
             const promises = [];
             promises.push(GM.setValue("mobileLayout",         mobileLayoutCheckbox.checked));
@@ -299,6 +391,10 @@ async function generateSettingsPage() {
             promises.push(GM.setValue("theme.tags.artist",    artistTagColorInput.value));
             promises.push(GM.setValue("theme.tags.general",   generalTagColorInput.value));
             promises.push(GM.setValue("theme.tags.metadata",  metadataTagColorInput.value));
+            for(item of filterCheckboxes) {
+                promises.push(GM.setValue("settings.filterLists." + item.id, item.checkbox.checked));
+                console.log(item.checkbox.checked);
+            }
           
             //make sure everything saved
             Promise.all(promises).then(() => {
@@ -428,22 +524,22 @@ async function updateCookies() {
         //remove comments, line breaks, and replace several spaces in a row with just a single space
         const compiledBlacklist = blacklist
             .replaceAll(/\n#.*$/mg, " ") //remove comments
-            .replaceAll("\n", " ")      //remove linebreaks
-            .replaceAll(/\s+/g, ' ')    //replace multiple consecutive spaces with just one
+            .replaceAll("\n", " ")       //remove linebreaks
+            .replaceAll(/\s+/g, ' ')     //replace multiple consecutive spaces with just one
             .trim();
         document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiledBlacklist));
     });
   
   
     await GM.getValue("mobileLayout", true).then((useMobileLayout) => {
-      document.cookie = "experiment-mobile-layout=" + useMobileLayout;
+        document.cookie = "experiment-mobile-layout=" + useMobileLayout;
     });
 }
 
 
 async function applyRegexBlacklist() {
   
-    await GM.getValue("regexBlacklist", "").then((blacklist) => {
+    await GM.getValue("regexBlacklist", "").then(async (blacklist) => {
       
       
         const regexStrings = blacklist
@@ -460,12 +556,20 @@ async function applyRegexBlacklist() {
             //console.log("flags: " +  flags);
         }
       
+        
       
+        if(regexStrings.length === 1 && regexStrings[0] === "") {blacklistedRegexes = []};
       
         const images = document.getElementsByClassName("image-list")[0].children;
+      
+      
         for(let image of images) {
+          
             if (image.tagName !== "SPAN") continue;
+          
             const tags = image.children[0].querySelector("img").alt.trim().split(" ");
+          
+          
             tags.forEach((tag) => {
                 for(let regex of blacklistedRegexes) {
                     if(regex.test(tag)) {
@@ -475,7 +579,39 @@ async function applyRegexBlacklist() {
                     }
                 };
             });
+          
+          
         }
+      
+      
+        //same thing but with each regex in the filter lists
+        for (item of filterLists) {
+            await GM.getValue("settings.filterLists." + item.id, item.default).then((enabled) => {
+                if(enabled) {
+                    for(let image of images) {
+
+                        if (image.tagName !== "SPAN") continue;
+
+                        const tags = image.children[0].querySelector("img").alt.trim().split(" ");
+
+
+                        tags.forEach((tag) => {
+                            for(let regex of item.regexBlacklist) {
+                                if(regex.test(tag)) {
+                                    console.log("Tag " + tag + " blacklisted by regex " + regex + " from filter list " + item.id);
+                                    image.style.display = "none";
+                                    continue;
+                                }
+                            };
+                        });
+
+
+                    }
+                }
+            });
+        }
+      
+      
     });
 
 }
