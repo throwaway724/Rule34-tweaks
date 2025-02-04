@@ -5,3 +5,4 @@ Features:
 * Regex blacklist
 * Toggleable built in filters
 * Ability to change theme of website
+* Option to hide comments
