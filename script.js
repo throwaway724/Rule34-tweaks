@@ -6,6 +6,21 @@
 // ==/UserScript==
 
 
+const defaultColors = {
+    background: "rgb(170, 229, 164)",
+    accent: "#93c393",
+  
+    link:   "rgb(0, 0, 153)",
+  
+    //tags
+    copyright: "rgb(170, 0, 170)",
+    character: "rgb(0, 170, 0)",
+    artist:    "rgb(170, 0, 0)",
+    general:   "rgb(0, 0, 153)",
+    metadata:  "rgb(255, 136, 0)"
+}
+
+
 const filterLists = [
     {
         id: "unethicalGooning",
