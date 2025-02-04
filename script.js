@@ -613,7 +613,6 @@ async function applyRegexBlacklist() {
       
         //same thing but with each regex in the filter lists
         for (let item of filterLists) {
-            console.log(item);
             await GM.getValue("settings.filterLists." + item.id, item.default).then((enabled) => {
                 if(enabled) {
                     for(let image of images) {
@@ -624,7 +623,6 @@ async function applyRegexBlacklist() {
 
 
                         tags.forEach((tag) => {
-                            console.log(item);
                             for(let regex of item.regexBlacklist) {
                                 if(regex.test(tag)) {
                                     console.log("Tag " + tag + " blacklisted by regex " + regex + " from filter list " + item.id);
