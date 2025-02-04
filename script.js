@@ -6,21 +6,6 @@
 // ==/UserScript==
 
 
-const defaultColors = {
-    background: "rgb(170, 229, 164)",
-    accent: "#93c393",
-  
-    link:   "rgb(0, 0, 153)",
-  
-    //tags
-    copyright: "rgb(170, 0, 170)",
-    character: "rgb(0, 170, 0)",
-    artist:    "rgb(170, 0, 0)",
-    general:   "rgb(0, 0, 153)",
-    metadata:  "rgb(255, 136, 0)"
-}
-
-
 const filterLists = [
     {
         id: "unethicalGooning",
@@ -35,7 +20,7 @@ const filterLists = [
         name: "Male Only",
         description: "Posts exclusively containing men, or depicting gay men",
         default: false,
-        blacklist: ["gay", "male_only"],
+        blacklist: ["gay", "male_only", "yaoi"],
         regexBlacklist: []
     },
     {
@@ -43,7 +28,7 @@ const filterLists = [
         name: "Male",
         description: "Any post involving men, including heterosexual contexts",
         default: false,
-        blacklist: ["penis"],
+        blacklist: ["penis", "gay", "male_only", "yaoi"],
         regexBlacklist: [/(\b|_|[0-9]+)(penis(es)?|gay|dicks?|cocks?|males?|boys?)(\b|_|[0-9]+)/]
     },
     {
@@ -51,7 +36,7 @@ const filterLists = [
         name: "Female Only",
         description: "Posts exclusively containing women or depicting lesbians",
         default: false,
-        blacklist: ["female_only", "lesbian"],
+        blacklist: ["female_only", "lesbian", "yuri"],
         regexBlacklist: []
     },
     {
@@ -59,8 +44,16 @@ const filterLists = [
         name: "Female",
         description: "Any post involving a woman, including heterosexual contexts",
         default: false,
-        blacklist: ["pussy", "1girls", "2girls", "1boy1girl", "female_only"],
+        blacklist: ["pussy", "1girls", "2girls", "1boy1girl", "female_only", "yuri"],
         regexBlacklist: [/(\b|_|[0-9]+)(vaginal?|pussy|females?|girls?|woman|women)(\b|_|[0-9]+)/]
+    },
+    {
+        id: "futanari",
+        name: "Futanari",
+        description: "",
+        default: false,
+        blacklist: ["futa", "futanari"],
+        regexBlacklist: [/(\b|_|[0-9]+)(futa(nari)?s?)(\b|_|[0-9]+)/]
     },
     {
         id: "furry",
@@ -75,8 +68,8 @@ const filterLists = [
         name: "Weird Fetishes",
         description: "",
         default: true,
-        blacklist: ["piss", "pissing", "shit", "shitting", "urine", "urinating", "urination", "pee", "peeing", "scat", "cockroach", "vore", "futa", "futanari"],
-        regexBlacklist: [/(\b|_|[0-9]+)(piss(ing)?|shit(ting)?|urin(e|ating|ation)|pee(ing)?|scat|vore|futas?)(\b|_|[0-9]+)/]
+        blacklist: ["piss", "pissing", "shit", "shitting", "urine", "urinating", "urination", "pee", "peeing", "scat", "cockroach", "vore"],
+        regexBlacklist: [/(\b|_|[0-9]+)(piss(ing)?|shit(ting)?|urin(e|ating|ation)|pee(ing)?|scat|vore)(\b|_|[0-9]+)/]
     }
 ];
 
