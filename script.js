@@ -151,7 +151,7 @@ async function getSettings() {
         blacklist: GM.getValue("blacklist", ""),
         regexBlacklist: GM.getValue("regexBlacklist", ""),
         mobileLayout: GM.getValue("mobileLayout", true),
-        //minscore: GM.getValue("minscore", 0),
+      //minscore: GM.getValue("minscore", 0),
       
         filterLists: [],
         theme: {
@@ -401,7 +401,6 @@ async function generateSettingsPage() {
             promises.push(GM.setValue("theme.tags.metadata",  metadataTagColorInput.value));
             for(item of filterCheckboxes) {
                 promises.push(GM.setValue("settings.filterLists." + item.id, item.checkbox.checked));
-                console.log(item.checkbox.checked);
             }
           
             //make sure everything saved
@@ -528,13 +527,33 @@ async function updateCookies() {
    
   
     //blacklist cookie
-    await GM.getValue("blacklist", "").then((blacklist) => {
+    await GM.getValue("blacklist", "").then(async (blacklist) => {
         //remove comments, line breaks, and replace several spaces in a row with just a single space
-        const compiledBlacklist = blacklist
+        let compiledBlacklist = blacklist
             .replaceAll(/\n#.*$/mg, " ") //remove comments
             .replaceAll("\n", " ")       //remove linebreaks
             .replaceAll(/\s+/g, ' ')     //replace multiple consecutive spaces with just one
             .trim();
+      
+      
+        if(compiledBlacklist.length === 1 && compiledBlacklist[0] === "")
+            compiledBlacklist = [];
+        const filters = [];
+        for(item of filterLists) {
+            filters.push({
+                blacklist: item.blacklist,
+                enabled: GM.getValue("settings.filterLists." + item.id, item.default)
+            });
+        }
+        Promise.all(filters.map(obj => obj.enabled))
+        for (item of filters) {
+            if (await (item.enabled)) {
+                if(compiledBlacklist[compiledBlacklist.length - 1] !== " ")
+                    compiledBlacklist += " "
+                compiledBlacklist += item.blacklist.join(" ");
+            }
+        }
+        console.log(compiledBlacklist);
         document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiledBlacklist));
     });
   
