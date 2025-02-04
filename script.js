@@ -43,7 +43,7 @@ const filterLists = [
         name: "Male",
         description: "Any post involving men, including heterosexual contexts",
         default: false,
-        blacklist: ["penis", "gay", "male_only", "yaoi"],
+        blacklist: ["penis", "gay", "male_only", "yaoi", "blowjob"],
         regexBlacklist: [/(\b|_|[0-9]+)(penis(es)?|gay|dicks?|cocks?|males?|boys?)(\b|_|[0-9]+)/]
     },
     {
@@ -151,6 +151,7 @@ async function getSettings() {
         blacklist: GM.getValue("blacklist", ""),
         regexBlacklist: GM.getValue("regexBlacklist", ""),
         mobileLayout: GM.getValue("mobileLayout", true),
+        hideComments: GM.getValue("hideComments", false),
       //minscore: GM.getValue("minscore", 0),
       
         filterLists: [],
@@ -263,6 +264,14 @@ async function generateSettingsPage() {
         generalHeader.style.textAlign = "center";
         generalHeader.innerHTML = "<td colspan=2><h3>General</h3></td>";
         tbody.appendChild(generalHeader);
+      
+      
+        const hideCommentsCheckbox = document.createElement("input");
+        hideCommentsCheckbox.type = "checkbox";
+        tbody.appendChild(createRow("Hide Comments","",hideCommentsCheckbox));
+      
+        await settings.hideComments.then((checked) => hideCommentsCheckbox.checked = checked);
+      
       
         const mobileLayoutCheckbox = document.createElement("input");
         mobileLayoutCheckbox.type = "checkbox";
@@ -387,6 +396,7 @@ async function generateSettingsPage() {
           
             //array of promises so we can see if it's saved correctly
             const promises = [];
+            promises.push(GM.setValue("hideComments",         hideCommentsCheckbox.checked));
             promises.push(GM.setValue("mobileLayout",         mobileLayoutCheckbox.checked));
             promises.push(GM.setValue("blacklist",            blacklistArea.value));
             promises.push(GM.setValue("regexBlacklist",       regexBlacklistArea.value));
@@ -399,7 +409,7 @@ async function generateSettingsPage() {
             promises.push(GM.setValue("theme.tags.artist",    artistTagColorInput.value));
             promises.push(GM.setValue("theme.tags.general",   generalTagColorInput.value));
             promises.push(GM.setValue("theme.tags.metadata",  metadataTagColorInput.value));
-            for(item of filterCheckboxes) {
+            for(let item of filterCheckboxes) {
                 promises.push(GM.setValue("settings.filterLists." + item.id, item.checkbox.checked));
             }
           
@@ -539,14 +549,14 @@ async function updateCookies() {
         if(compiledBlacklist.length === 1 && compiledBlacklist[0] === "")
             compiledBlacklist = [];
         const filters = [];
-        for(item of filterLists) {
+        for(let item of filterLists) {
             filters.push({
                 blacklist: item.blacklist,
                 enabled: GM.getValue("settings.filterLists." + item.id, item.default)
             });
         }
         Promise.all(filters.map(obj => obj.enabled))
-        for (item of filters) {
+        for (let item of filters) {
             if (await (item.enabled)) {
                 if(compiledBlacklist[compiledBlacklist.length - 1] !== " ")
                     compiledBlacklist += " "
@@ -575,7 +585,7 @@ async function applyRegexBlacklist() {
             .split("\n");                         //split by linebreaks
 
         let blacklistedRegexes = [];
-        for(regexString of regexStrings) {
+        for(let regexString of regexStrings) {
             const pattern = regexString.slice(1, regexString.lastIndexOf('/'));
             const flags = regexString.slice(regexString.lastIndexOf('/') + 1);
             blacklistedRegexes.push(new RegExp(pattern, flags));
@@ -645,10 +655,18 @@ async function applyRegexBlacklist() {
 
 
 
-function updatePostView() {
+async function updatePostView() {
     //hide comments
     document.getElementById("comment-list").style.display = "none";
     document.getElementById("paginator").style.display = "none";
+    await getSettings().then(async (settings) => {
+        await settings.hideComments.then((enabled) => {
+            if(!enabled) {
+                document.getElementById("comment-list").style.display = "unset";
+                document.getElementById("paginator").style.display = "unset";
+            }
+        });
+    });
   
     //hide edit and respond options
     document.getElementsByClassName("image-sublinks")[0].style.display = "none";
