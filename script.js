@@ -551,6 +551,7 @@ async function updateCookies() {
             compiledBlacklist = "";
         getFilters.then((filters) => {
             for (let item of filters) {
+                if(!item.enabled) continue;
                 if(compiledBlacklist[compiledBlacklist.length - 1] !== "")
                     compiledBlacklist += " ";
                 compiledBlacklist += item.blacklist.join(" ");
