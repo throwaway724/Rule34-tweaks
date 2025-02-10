@@ -1,9 +1,44 @@
 // ==UserScript==
 // @name     Rule34.xxx tweaks
 // @version  1
-// @grant    GM.setValue
+// @match    https://rule34.xxx/*
 // @grant    GM.getValue
+// @grant    GM.setValue
 // ==/UserScript==
+
+
+//Optimize getting settings by not having to wait for getValue if possible
+const settingsCache = {};
+
+async function readSetting(name, defaultValue) {
+    return new Promise(async (accept, reject) => {
+        const cachedSetting = settingsCache[name];
+        if(cachedSetting !== undefined)
+            accept(cachedSetting);
+        GM.getValue(name, defaultValue).then((value) => {
+            settingsCache[name] = value;
+            accept(value);
+        })
+        .catch((error) => {
+            reject(error);
+        });
+        
+    });
+}
+
+async function writeSetting(name, value) {
+    return new Promise(async (accept, reject) => {
+        GM.setValue(name, value).then(() => {
+            settingsCache[name] = value;
+            accept();
+        })
+        .catch(() => {
+            delete settingsCache[name];
+            reject();
+        });
+    });
+}
+
 
 
 const defaultColors = {
@@ -21,73 +56,17 @@ const defaultColors = {
 }
 
 
-const filterLists = [
-    {
-        id: "unethicalGooning",
-        name: "Unethical Gooning",
-        description: "",
-        default: true,
-        blacklist: ["rape", "questionable_consent", "imminent_rape", "implied_rape", "struggling", "aged_up", "ai_generated", "ai_assisted", "pixai", "incest", "imminent_incest", "implied_incest", "brother_and_sister", "the_coffin_of_andy_and_leyley", "real_person", "jaiden_animations", "jaiden", "virtual_youtuber"],
-        regexBlacklist: [/(\b|_|[0-9]+)(rape|incest|ai)(\b|_|[0-9]+)/]
-    },
-    {
-        id: "maleOnly",
-        name: "Male Only",
-        description: "Posts exclusively containing men, or depicting gay men",
-        default: false,
-        blacklist: ["gay", "male_only", "yaoi"],
-        regexBlacklist: []
-    },
-    {
-        id: "male",
-        name: "Male",
-        description: "Any post involving men, including heterosexual contexts",
-        default: false,
-        blacklist: ["penis", "gay", "male_only", "yaoi", "blowjob"],
-        regexBlacklist: [/(\b|_|[0-9]+)(penis(es)?|gay|dicks?|cocks?|males?|boys?)(\b|_|[0-9]+)/]
-    },
-    {
-        id: "femaleOnly",
-        name: "Female Only",
-        description: "Posts exclusively containing women or depicting lesbians",
-        default: false,
-        blacklist: ["female_only", "lesbian", "yuri"],
-        regexBlacklist: []
-    },
-    {
-        id: "female",
-        name: "Female",
-        description: "Any post involving a woman, including heterosexual contexts",
-        default: false,
-        blacklist: ["pussy", "1girls", "2girls", "1boy1girl", "female_only", "yuri"],
-        regexBlacklist: [/(\b|_|[0-9]+)(vaginal?|pussy|females?|girls?|woman|women)(\b|_|[0-9]+)/]
-    },
-    {
-        id: "futanari",
-        name: "Futanari",
-        description: "",
-        default: false,
-        blacklist: ["futa", "futanari"],
-        regexBlacklist: [/(\b|_|[0-9]+)(futa(nari)?s?)(\b|_|[0-9]+)/]
-    },
-    {
-        id: "furry",
-        name: "Furry",
-        description: "",
-        default: false,
-        blacklist: ["fur", "furry", "yiff", "anthro", "paws", "canine"],
-        regexBlacklist: []
-    },
-    {
-        id: "weirdFetishes",
-        name: "Weird Fetishes",
-        description: "",
-        default: true,
-        blacklist: ["piss", "pissing", "shit", "shitting", "urine", "urinating", "urination", "pee", "peeing", "scat", "cockroach", "vore"],
-        regexBlacklist: [/(\b|_|[0-9]+)(piss(ing)?|shit(ting)?|urin(e|ating|ation)|pee(ing)?|scat|vore)(\b|_|[0-9]+)/]
-    }
-];
+async function updateFilters() {
+  
+    fetch('https://raw.githubusercontent.com/throwaway724/Rule34-filters/main/filters.json', {cache: "no-store"})
+        .then(function(response) {
+        return response.json();
+    }).then(function(data) {
+        writeSetting("filterLists", JSON.stringify(data));
+        console.log(data);
+    });
 
+}
 
 
 async function applyTheme() {
@@ -100,7 +79,7 @@ async function applyTheme() {
   
   
     //background color
-    await (GM.getValue("theme.background", defaultColors.background)).then((bgColor)=>{
+    await (readSetting("theme.background", defaultColors.background)).then((bgColor)=>{
       
         style.innerHTML += `body, .awesomplete > ul {background:${bgColor}}`;
         style.innerHTML += `.current-page {background-image:none !important}`; //default background image is green
@@ -110,7 +89,7 @@ async function applyTheme() {
     });
   
     //accent  
-    await (GM.getValue("theme.accent", defaultColors.accent)).then((accent)=>{
+    await (readSetting("theme.accent", defaultColors.accent)).then((accent)=>{
         style.innerHTML += `#pageid, .manual-page-chooser > input[type="submit"]  {background-color: ${accent}}`;
         style.innerHTML += `#subnavbar {background: ${accent} !important}`;
         if(isMobile) {
@@ -120,70 +99,87 @@ async function applyTheme() {
     });
   
     //classless links
-    await (GM.getValue("theme.link", defaultColors.link)).then((linkColor)=>{
+    await (readSetting("theme.link", defaultColors.link)).then((linkColor)=>{
         style.innerHTML += `a:link {color: ${linkColor}}`;         
     });
   
   
     //tags
-    await (GM.getValue("theme.tags.copyright", defaultColors.copyright)).then((linkColor)=>{
+    await (readSetting("theme.tags.copyright", defaultColors.copyright)).then((linkColor)=>{
         style.innerHTML += `.tag-type-copyright > a, .tag-type-copyright {color: ${linkColor}}`;         
     });
-    await (GM.getValue("theme.tags.character", defaultColors.character)).then((linkColor)=>{
+    await (readSetting("theme.tags.character", defaultColors.character)).then((linkColor)=>{
         style.innerHTML += `.tag-type-character > a, .tag-type-character {color: ${linkColor}}`;         
     });
-    await (GM.getValue("theme.tags.artist", defaultColors.artist)).then((linkColor)=>{
+    await (readSetting("theme.tags.artist", defaultColors.artist)).then((linkColor)=>{
         style.innerHTML += `.tag-type-artist > a, .tag-type-artist {color: ${linkColor}}`;         
     });
-    await (GM.getValue("theme.tags.general", defaultColors.general)).then((linkColor)=>{
+    await (readSetting("theme.tags.general", defaultColors.general)).then((linkColor)=>{
         style.innerHTML += `.tag-type-general > a, .tag-type-general {color: ${linkColor}}`;         
     });
-    await (GM.getValue("theme.tags.metadata", defaultColors.metadata)).then((linkColor)=>{
+    await (readSetting("theme.tags.metadata", defaultColors.metadata)).then((linkColor)=>{
         style.innerHTML += `.tag-type-metadata > a, .tag-type-metadata {color: ${linkColor}}`;         
     });
 
 }
 
 
+const getFilters = new Promise((resolve, reject) => {
+    const filters = [];
+    const enabledPromises = [];
+    readSetting("filterLists", "[]").then((filterLists) => {
+        for(let item of JSON.parse(filterLists)) {
+            const enabledPromise = readSetting("settings.filterLists." + item.id, item.default);
+            enabledPromises.push(enabledPromise);
+            enabledPromise.then((enabled) => {
+                    filters.push({
+                        "id": item.id,
+                        "name": item.name,
+                        "description": item.description,
+                        "blacklist": item.blacklist,
+                        "regexBlacklist": item.regexBlacklist,
+                        "enabled": enabled
+                    });
+            
+            });
+        }
+        Promise.all(enabledPromises).then(() => {resolve(filters)});
+    });
+});
+
+
 //function to get all stored settings. Returns object containing fulfilled promises once every single promise is fulfilled
 async function getSettings() {
     const settings = {
-        blacklist: GM.getValue("blacklist", ""),
-        regexBlacklist: GM.getValue("regexBlacklist", ""),
-        mobileLayout: GM.getValue("mobileLayout", true),
-        hideComments: GM.getValue("hideComments", false),
-      //minscore: GM.getValue("minscore", 0),
+        blacklist:      readSetting("blacklist",      ""),
+        regexBlacklist: readSetting("regexBlacklist", ""),
+        mobileLayout:   readSetting("mobileLayout",   true),
+        hideComments:   readSetting("hideComments",   false),
+      //minscore:       readSetting("minscore",       0),
       
-        filterLists: [],
         theme: {
-            background: GM.getValue("theme.background", defaultColors.background),
-            accent:     GM.getValue("theme.accent", defaultColors.accent),
-            link:       GM.getValue("theme.link", defaultColors.link),
+            background: readSetting("theme.background", defaultColors.background),
+            accent:     readSetting("theme.accent",     defaultColors.accent),
+            link:       readSetting("theme.link",       defaultColors.link),
             tags: 
             {
-                copyright: GM.getValue("theme.tags.copyright", defaultColors.copyright),
-                character: GM.getValue("theme.tags.character", defaultColors.character),
-                artist:    GM.getValue("theme.tags.artist", defaultColors.artist),
-                general:   GM.getValue("theme.tags.general", defaultColors.general),
-                metadata:  GM.getValue("theme.tags.metadata", defaultColors.metadata)
+                copyright: readSetting("theme.tags.copyright", defaultColors.copyright),
+                character: readSetting("theme.tags.character", defaultColors.character),
+                artist:    readSetting("theme.tags.artist",    defaultColors.artist),
+                general:   readSetting("theme.tags.general",   defaultColors.general),
+                metadata:  readSetting("theme.tags.metadata",  defaultColors.metadata)
             }
         }
     };
   
-    for(let item of filterLists) {
-        settings.filterLists.push({
-            id: item.id,
-            name: item.name,
-            description: item.description,
-            enabled: GM.getValue("settings.filterLists." + item.id, item.default)
-        });
-    }
+    getFilters.then((arr) => {settings.filters = arr;})
+    
   
     //console.log(settings.filterLists);
   
   
     await Promise.all(Object.values(settings)
-        .concat(settings.filterLists.map(obj => obj.enabled))
+        .concat(getFilters)
         .concat(Object.values(settings.theme))
         .concat(Object.values(settings.theme.tags))
     );
@@ -191,9 +187,6 @@ async function getSettings() {
     return settings;
   
 }
-
-
-
 
 
 
@@ -316,11 +309,19 @@ async function generateSettingsPage() {
       
         const filterListsHeader = document.createElement("tr");
         filterListsHeader.style.textAlign = "center";
-        filterListsHeader.innerHTML = "<td colspan=2><h4>Filter Lists</h4></td>";
+        const filterListsData = document.createElement("td");
+        filterListsData.colSpan = 2;
+        filterListsData.innerHTML = "<h4>Filter Lists</h4>";
+        const updateButton = document.createElement("p");
+        updateButton.style.cursor = "pointer";
+        updateButton.innerHTML = "(update)";
+        updateButton.addEventListener("click", updateFilters);
+        filterListsData.appendChild(updateButton);
+        filterListsHeader.appendChild(filterListsData);
         tbody.appendChild(filterListsHeader);
       
         const filterCheckboxes = [];
-        for(item of settings.filterLists) {
+        for(item of settings.filters) {
             const checkbox = document.createElement("input");
             filterCheckboxes.push({checkbox: checkbox, id: item.id});
             checkbox.type = "checkbox";
@@ -396,21 +397,21 @@ async function generateSettingsPage() {
           
             //array of promises so we can see if it's saved correctly
             const promises = [];
-            promises.push(GM.setValue("hideComments",         hideCommentsCheckbox.checked));
-            promises.push(GM.setValue("mobileLayout",         mobileLayoutCheckbox.checked));
-            promises.push(GM.setValue("blacklist",            blacklistArea.value));
-            promises.push(GM.setValue("regexBlacklist",       regexBlacklistArea.value));
-          //promises.push(GM.setValue("minscore",             minscoreInput.value));
-            promises.push(GM.setValue("theme.background",     bgColorInput.value));
-            promises.push(GM.setValue("theme.accent",         accentColorInput.value));
-            promises.push(GM.setValue("theme.link",           linkColorInput.value));
-            promises.push(GM.setValue("theme.tags.copyright", copyrightTagColorInput.value));
-            promises.push(GM.setValue("theme.tags.character", characterTagColorInput.value));
-            promises.push(GM.setValue("theme.tags.artist",    artistTagColorInput.value));
-            promises.push(GM.setValue("theme.tags.general",   generalTagColorInput.value));
-            promises.push(GM.setValue("theme.tags.metadata",  metadataTagColorInput.value));
+            promises.push(writeSetting("hideComments",         hideCommentsCheckbox.checked));
+            promises.push(writeSetting("mobileLayout",         mobileLayoutCheckbox.checked));
+            promises.push(writeSetting("blacklist",            blacklistArea.value));
+            promises.push(writeSetting("regexBlacklist",       regexBlacklistArea.value));
+          //promises.push(writeSetting("minscore",             minscoreInput.value));
+            promises.push(writeSetting("theme.background",     bgColorInput.value));
+            promises.push(writeSetting("theme.accent",         accentColorInput.value));
+            promises.push(writeSetting("theme.link",           linkColorInput.value));
+            promises.push(writeSetting("theme.tags.copyright", copyrightTagColorInput.value));
+            promises.push(writeSetting("theme.tags.character", characterTagColorInput.value));
+            promises.push(writeSetting("theme.tags.artist",    artistTagColorInput.value));
+            promises.push(writeSetting("theme.tags.general",   generalTagColorInput.value));
+            promises.push(writeSetting("theme.tags.metadata",  metadataTagColorInput.value));
             for(let item of filterCheckboxes) {
-                promises.push(GM.setValue("settings.filterLists." + item.id, item.checkbox.checked));
+                promises.push(writeSetting("settings.filterLists." + item.id, item.checkbox.checked));
             }
           
             //make sure everything saved
@@ -461,7 +462,7 @@ async function generateFavoritesPage() {
   
   
   
-    await GM.getValue("favorites", "[]").then(async (str_favorites) => {
+    await readSetting("favorites", "[]").then(async (str_favorites) => {
         const favorites = JSON.parse(str_favorites);
         const imageList = document.createElement("div");
         imageList.classList.add("image-list");
@@ -493,7 +494,7 @@ async function generateFavoritesPage() {
             removeButton.addEventListener("click", async () => {
                 const index = favorites.findIndex((element) => element.id === favorite.id); //find index of favorite
                 favorites.splice(index,1); //remove from favorites
-                await GM.setValue("favorites", JSON.stringify(favorites)).then(() => {
+                await writeSetting("favorites", JSON.stringify(favorites)).then(() => {
                     console.log(favorite.id);
                     document.getElementById("w" + favorite.id).remove(); //remove post from gallery
                 });
@@ -537,7 +538,7 @@ async function updateCookies() {
    
   
     //blacklist cookie
-    await GM.getValue("blacklist", "").then(async (blacklist) => {
+    await readSetting("blacklist", "").then(async (blacklist) => {
         //remove comments, line breaks, and replace several spaces in a row with just a single space
         let compiledBlacklist = blacklist
             .replaceAll(/\n#.*$/mg, " ") //remove comments
@@ -547,28 +548,19 @@ async function updateCookies() {
       
       
         if(compiledBlacklist.length === 1 && compiledBlacklist[0] === "")
-            compiledBlacklist = [];
-        const filters = [];
-        for(let item of filterLists) {
-            filters.push({
-                blacklist: item.blacklist,
-                enabled: GM.getValue("settings.filterLists." + item.id, item.default)
-            });
-        }
-        Promise.all(filters.map(obj => obj.enabled))
-        for (let item of filters) {
-            if (await (item.enabled)) {
-                if(compiledBlacklist[compiledBlacklist.length - 1] !== " ")
-                    compiledBlacklist += " "
+            compiledBlacklist = "";
+        getFilters.then((filters) => {
+            for (let item of filters) {
+                if(compiledBlacklist[compiledBlacklist.length - 1] !== "")
+                    compiledBlacklist += " ";
                 compiledBlacklist += item.blacklist.join(" ");
             }
-        }
-        console.log(compiledBlacklist);
-        document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiledBlacklist));
+            document.cookie = "tag_blacklist=" + encodeURI(encodeURI(compiledBlacklist));
+        });
     });
   
   
-    await GM.getValue("mobileLayout", true).then((useMobileLayout) => {
+    await readSetting("mobileLayout", true).then((useMobileLayout) => {
         document.cookie = "experiment-mobile-layout=" + useMobileLayout;
     });
 }
@@ -576,7 +568,7 @@ async function updateCookies() {
 
 async function applyRegexBlacklist() {
   
-    await GM.getValue("regexBlacklist", "").then(async (blacklist) => {
+    await readSetting("regexBlacklist", "").then(async (blacklist) => {
       
       
         const regexStrings = blacklist
@@ -620,33 +612,33 @@ async function applyRegexBlacklist() {
           
         }
       
-      
+
         //same thing but with each regex in the filter lists
-        for (let item of filterLists) {
-            await GM.getValue("settings.filterLists." + item.id, item.default).then((enabled) => {
-                if(enabled) {
-                    for(let image of images) {
+        await getFilters.then((filters) => {
+            console.log(filters);
+            for (let item of filters) {
+                if(!item.enabled) continue;
+                for(let image of images) {
 
-                        if (image.tagName !== "SPAN") continue;
+                    if (image.tagName !== "SPAN") continue;
 
-                        const tags = image.children[0].querySelector("img").alt.trim().split(" ");
-
-
-                        tags.forEach((tag) => {
-                            for(let regex of item.regexBlacklist) {
-                                if(regex.test(tag)) {
-                                    console.log("Tag " + tag + " blacklisted by regex " + regex + " from filter list " + item.id);
-                                    image.style.display = "none";
-                                    continue;
-                                }
-                            };
-                        });
+                    const tags = image.children[0].querySelector("img").alt.trim().split(" ");
 
 
-                    }
+                    tags.forEach((tag) => {
+                        for(let regex of item.regexBlacklist) {
+                            if(new RegExp(regex).test(tag)) {
+                                console.log("Tag " + tag + " blacklisted by regex " + regex + " from filter list " + item.id);
+                                image.style.display = "none";
+                                continue;
+                            }
+                        };
+                    });
+
                 }
-            });
-        }
+            }
+          
+        });
       
       
     });
@@ -681,7 +673,7 @@ async function updatePostView() {
     const favoriteAdder = options[options.length - 1].children[0];
     favoriteAdder.setAttribute( "onclick", "javascript: void(0);" );
     favoriteAdder.addEventListener("click", async function() {
-        await GM.getValue("favorites", "[]").then(async (str_favorites) => {
+        await readSetting("favorites", "[]").then(async (str_favorites) => {
             const favorites = JSON.parse(str_favorites);
           
             const id = Number(url.searchParams.get("id"));
@@ -700,7 +692,7 @@ async function updatePostView() {
                 notice.style.display = "unset";
                 notice.innerHTML = "Post already in your favorites";
             } else {
-                await GM.setValue("favorites", JSON.stringify(favorites.concat(item))).then(() => {
+                await writeSetting("favorites", JSON.stringify(favorites.concat(item))).then(() => {
                     notice.style.display = "unset";
                     notice.innerHTML = "Post added to favorites";
                 }).catch(() => {
@@ -717,23 +709,20 @@ async function updatePostView() {
 }
 
 
-
+applyTheme();
+updateCookies();
 
 const url = new URL(window.location.href);
 
-if(url.hostname === "rule34.xxx") {
-    applyTheme();
-    updateCookies();
-    if(url.searchParams.get("page") !== null) {
-        updateNavbar();
-        if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "list") {
-            applyRegexBlacklist();
-        }
-        if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "view") {
-            updatePostView();
-        }
-    } else {
-        //if on main page, remove "my account" tab
-        document.getElementById("links").children[3].style.display = "none";
+if(url.searchParams.get("page") !== null) {
+    updateNavbar();
+    if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "list") {
+        applyRegexBlacklist();
     }
+    if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "view") {
+        updatePostView();
+    }
+} else {
+    //if on main page, remove "my account" tab
+    document.getElementById("links").children[3].style.display = "none";
 }
