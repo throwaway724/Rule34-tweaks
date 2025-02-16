@@ -128,7 +128,7 @@ async function applyTheme() {
 const getFilters = new Promise((resolve, reject) => {
     const filters = [];
     const enabledPromises = [];
-    readSetting("filterLists", "[]").then((filterLists) => {
+    readSetting("filterLists", "{\"filters\": []}").then((filterLists) => {
         for(let item of JSON.parse(filterLists).filters) {
             const enabledPromise = readSetting("settings.filterLists." + item.id, item.default);
             enabledPromises.push(enabledPromise);
