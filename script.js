@@ -137,7 +137,7 @@ const getFilters = new Promise((resolve, reject) => {
     const filters = [];
     const enabledPromises = [];
     readSetting("filterLists", "{\"filters\": []}").then((filterLists) => {
-        for(let item of JSON.parse(filterLists).filters) {
+        for(const item of JSON.parse(filterLists).filters) {
             const enabledPromise = readSetting("settings.filterLists." + item.id, item.default);
             enabledPromises.push(enabledPromise);
             enabledPromise.then((enabled) => {
@@ -330,7 +330,7 @@ async function generateSettingsPage() {
         tbody.appendChild(filterListsHeader);
       
         const filterCheckboxes = [];
-        for(item of settings.filters) {
+        for(const item of settings.filters) {
             const checkbox = document.createElement("input");
             filterCheckboxes.push({checkbox: checkbox, id: item.id});
             checkbox.type = "checkbox";
@@ -419,7 +419,7 @@ async function generateSettingsPage() {
             promises.push(writeSetting("theme.tags.artist",    artistTagColorInput.value));
             promises.push(writeSetting("theme.tags.general",   generalTagColorInput.value));
             promises.push(writeSetting("theme.tags.metadata",  metadataTagColorInput.value));
-            for(let item of filterCheckboxes) {
+            for(const item of filterCheckboxes) {
                 promises.push(writeSetting("settings.filterLists." + item.id, item.checkbox.checked));
             }
           
@@ -477,7 +477,7 @@ async function generateFavoritesPage() {
         const imageList = document.createElement("div");
         imageList.classList.add("image-list");
       
-        for(let favorite of favorites) {
+        for(const favorite of favorites) {
           
             const span = document.createElement("span");
             span.style.alignSelf = "flex-start";
@@ -560,7 +560,7 @@ async function updateCookies() {
         if(compiledBlacklist.length === 1 && compiledBlacklist[0] === "")
             compiledBlacklist = "";
         getFilters.then((filters) => {
-            for (let item of filters) {
+            for (const item of filters) {
                 if(!item.enabled) continue;
                 if(compiledBlacklist[compiledBlacklist.length - 1] !== "")
                     compiledBlacklist += " ";
@@ -588,7 +588,7 @@ async function applyRegexBlacklist() {
             .split("\n");                         //split by linebreaks
 
         let blacklistedRegexes = [];
-        for(let regexString of regexStrings) {
+        for(const regexString of regexStrings) {
             const pattern = regexString.slice(1, regexString.lastIndexOf('/'));
             const flags = regexString.slice(regexString.lastIndexOf('/') + 1);
             blacklistedRegexes.push(new RegExp(pattern, flags));
@@ -603,7 +603,7 @@ async function applyRegexBlacklist() {
         const images = document.getElementsByClassName("image-list")[0].children;
       
       
-        for(let image of images) {
+        for(const image of images) {
           
             if (image.tagName !== "SPAN") continue;
           
@@ -611,7 +611,7 @@ async function applyRegexBlacklist() {
           
           
             tags.forEach((tag) => {
-                for(let regex of blacklistedRegexes) {
+                for(const regex of blacklistedRegexes) {
                     if(regex.test(tag)) {
                         console.log("Tag " + tag + " blacklisted by regex " + regex);
                         image.style.display = "none";
@@ -626,9 +626,9 @@ async function applyRegexBlacklist() {
 
         //same thing but with each regex in the filter lists
         await getFilters.then((filters) => {
-            for (let item of filters) {
+            for (const item of filters) {
                 if(!item.enabled) continue;
-                for(let image of images) {
+                for(const image of images) {
 
                     if (image.tagName !== "SPAN") continue;
 
@@ -636,7 +636,7 @@ async function applyRegexBlacklist() {
 
 
                     tags.forEach((tag) => {
-                        for(let regex of item.regexBlacklist) {
+                        for(const regex of item.regexBlacklist) {
                             if(new RegExp(regex).test(tag)) {
                                 console.log("Tag " + tag + " blacklisted by regex " + regex + " from filter list " + item.id);
                                 image.style.display = "none";
@@ -694,7 +694,7 @@ async function updatePostView() {
           
           
             const favorite_ids = [];
-            for(let favorite of favorites) {
+            for(const favorite of favorites) {
                 favorite_ids.push(favorite.id);
             }
           
