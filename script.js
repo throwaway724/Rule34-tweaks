@@ -2,10 +2,11 @@
 // @name     Rule34.xxx tweaks
 // @version  1
 // @match    https://rule34.xxx/*
+// @run-at   document-start
 // @grant    GM.getValue
 // @grant    GM.setValue
 // ==/UserScript==
-
+"use strict";
 
 //Optimize getting settings by not having to wait for getValue if possible
 const settingsCache = {};
@@ -41,19 +42,18 @@ async function writeSetting(name, value) {
 }
 
 
-
 const defaultColors = {
     background: "rgb(170, 229, 164)",
-    accent: "#93c393",
+    accent:     "#93c393",
   
-    link:   "rgb(0, 0, 153)",
+    link:       "rgb(0, 0, 153)",
   
     //tags
-    copyright: "rgb(170, 0, 170)",
-    character: "rgb(0, 170, 0)",
-    artist:    "rgb(170, 0, 0)",
-    general:   "rgb(0, 0, 153)",
-    metadata:  "rgb(255, 136, 0)"
+    copyright:  "rgb(170, 0, 170)",
+    character:  "rgb(0, 170, 0)",
+    artist:     "rgb(170, 0, 0)",
+    general:    "rgb(0, 0, 153)",
+    metadata:   "rgb(255, 136, 0)"
 }
 
 
@@ -71,57 +71,65 @@ async function updateFilters() {
 
 
 async function applyTheme() {
-  
     const style = document.createElement("style");
     style.type  = "text/css";
-    document.getElementsByTagName('head')[0].appendChild(style);
-  
-    const isMobile = new URL(document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]").href).pathname === "//css/mobile.css";
+
   
   
     //background color
-    await (readSetting("theme.background", defaultColors.background)).then((bgColor)=>{
+    readSetting("theme.background", defaultColors.background).then((bgColor)=>{
       
-        style.innerHTML += `body, .awesomplete > ul {background:${bgColor}}`;
+        style.innerHTML += `body, .awesomplete > ul {background:${bgColor} !important}`;
         style.innerHTML += `.current-page {background-image:none !important}`; //default background image is green
-        if(isMobile) {
-            style.innerHTML += `#navbar {background: ${bgColor} !important}`;
-        }
     });
-  
     //accent  
-    await (readSetting("theme.accent", defaultColors.accent)).then((accent)=>{
-        style.innerHTML += `#pageid, .manual-page-chooser > input[type="submit"]  {background-color: ${accent}}`;
+    readSetting("theme.accent", defaultColors.accent).then((accent)=>{
+        style.innerHTML += `#pageid, .manual-page-chooser > input[type="submit"]  {background-color: ${accent} !important}`;
         style.innerHTML += `#subnavbar {background: ${accent} !important}`;
-        if(isMobile) {
-            style.innerHTML += `#header {background: ${accent} !important}`;
-            style.innerHTML += `#navbar li {border-color: ${accent} !important}`;
-        }
     });
   
     //classless links
-    await (readSetting("theme.link", defaultColors.link)).then((linkColor)=>{
+    readSetting("theme.link", defaultColors.link).then((linkColor)=>{
         style.innerHTML += `a:link {color: ${linkColor}}`;         
     });
   
   
     //tags
-    await (readSetting("theme.tags.copyright", defaultColors.copyright)).then((linkColor)=>{
+    readSetting("theme.tags.copyright", defaultColors.copyright).then((linkColor)=>{
         style.innerHTML += `.tag-type-copyright > a, .tag-type-copyright {color: ${linkColor}}`;         
     });
-    await (readSetting("theme.tags.character", defaultColors.character)).then((linkColor)=>{
+    readSetting("theme.tags.character", defaultColors.character).then((linkColor)=>{
         style.innerHTML += `.tag-type-character > a, .tag-type-character {color: ${linkColor}}`;         
     });
-    await (readSetting("theme.tags.artist", defaultColors.artist)).then((linkColor)=>{
+    readSetting("theme.tags.artist", defaultColors.artist).then((linkColor)=>{
         style.innerHTML += `.tag-type-artist > a, .tag-type-artist {color: ${linkColor}}`;         
     });
-    await (readSetting("theme.tags.general", defaultColors.general)).then((linkColor)=>{
+    readSetting("theme.tags.general", defaultColors.general).then((linkColor)=>{
         style.innerHTML += `.tag-type-general > a, .tag-type-general {color: ${linkColor}}`;         
     });
-    await (readSetting("theme.tags.metadata", defaultColors.metadata)).then((linkColor)=>{
+    readSetting("theme.tags.metadata", defaultColors.metadata).then((linkColor)=>{
         style.innerHTML += `.tag-type-metadata > a, .tag-type-metadata {color: ${linkColor}}`;         
     });
-
+  
+  
+    //mobile only settings
+    document.addEventListener("DOMContentLoaded", function(e) {
+      
+      	document.head.appendChild(style);
+      
+        if(new URL(document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]").href).pathname === "//css/mobile.css") {
+            readSetting("theme.background", defaultColors.background).then((bgColor)=>{
+            	style.innerHTML += `#navbar {background: ${bgColor} !important}`;
+            });
+          
+            readSetting("theme.accent", defaultColors.accent).then((accent)=>{
+                style.innerHTML += `#header {background: ${accent} !important}`;
+                style.innerHTML += `#navbar li {border-color: ${accent} !important}`;
+            });
+          
+          
+        };
+    });
 }
 
 
@@ -618,7 +626,6 @@ async function applyRegexBlacklist() {
 
         //same thing but with each regex in the filter lists
         await getFilters.then((filters) => {
-            console.log(filters);
             for (let item of filters) {
                 if(!item.enabled) continue;
                 for(let image of images) {
@@ -716,17 +723,20 @@ async function updatePostView() {
 applyTheme();
 updateCookies();
 
-const url = new URL(window.location.href);
+document.addEventListener("DOMContentLoaded", () => {
 
-if(url.searchParams.get("page") !== null) {
-    updateNavbar();
-    if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "list") {
-        applyRegexBlacklist();
+    const url = new URL(window.location.href);
+
+    if(url.searchParams.get("page") !== null) {
+        updateNavbar();
+        if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "list") {
+            applyRegexBlacklist();
+        }
+        if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "view") {
+            updatePostView();
+        }
+    } else {
+        //if on main page, remove "my account" tab
+        document.getElementById("links").children[3].style.display = "none";
     }
-    if(url.searchParams.get("page") === "post" && url.searchParams.get("s") === "view") {
-        updatePostView();
-    }
-} else {
-    //if on main page, remove "my account" tab
-    document.getElementById("links").children[3].style.display = "none";
-}
+});
