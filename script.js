@@ -80,6 +80,7 @@ async function applyTheme() {
     readSetting("theme.background", defaultColors.background).then((bgColor)=>{
       
         style.innerHTML += `body, .awesomplete > ul {background:${bgColor} !important}`;
+        style.innerHTML += `.awesomplete > ul > li:hover, .awesomplete > ul > li[aria-selected="true"] {background: ${bgColor} !important}`;
         style.innerHTML += `.current-page {background-image:none !important}`; //default background image is green
     });
     //accent  
@@ -112,12 +113,26 @@ async function applyTheme() {
     });
   
   
-    //mobile only settings
+    
     document.addEventListener("DOMContentLoaded", function(e) {
       
       	document.head.appendChild(style);
       
-        if(new URL(document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]").href).pathname === "//css/mobile.css") {
+
+        const stylesheetElement = document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]");
+        /**
+        const stylesheetRules = stylesheetElement.sheet.rules;
+      
+      	for (const item of stylesheetRules) {
+        		if(item.selectorText === ".awesomplete > ul > li:hover, .awesomplete > ul > li[aria-selected=\"true\"]") {
+            		item.style.removeProperty("color");
+                console.log(item.style);
+            }
+        }
+        **/
+        
+        //mobile only settings
+        if(new URL(stylesheetElement.href).pathname === "//css/mobile.css") {
             readSetting("theme.background", defaultColors.background).then((bgColor)=>{
             	style.innerHTML += `#navbar {background: ${bgColor} !important}`;
             });
