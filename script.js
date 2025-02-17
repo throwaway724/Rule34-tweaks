@@ -723,9 +723,9 @@ async function updatePostView() {
 applyTheme();
 updateCookies();
 
-document.addEventListener("DOMContentLoaded", () => {
+const url = new URL(window.location.href);
 
-    const url = new URL(window.location.href);
+document.addEventListener("DOMContentLoaded", () => {
 
     if(url.searchParams.get("page") !== null) {
         updateNavbar();
