@@ -2,7 +2,7 @@
 A greasemonkey script to add some extra functionality to rule34.xxx
 
 Features:
-* Options and favorites saved locally by extension via `GM.setValue`, meaning they are saved even in incognito mode
+* Options and favorites are saved locally by extension via `GM.setValue`, meaning they are saved even in incognito mode without an account
 * Option to hide comments
 * Ability to blacklist tags using regular expressions
 * Filter lists that can be updated without updating the extension
