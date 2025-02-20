@@ -11,7 +11,7 @@
 //Optimize getting settings by not having to wait for getValue if possible
 const settingsCache = {};
 
-async function readSetting(name, defaultValue) {
+function readSetting(name, defaultValue) {
     return new Promise(async (accept, reject) => {
         const cachedSetting = settingsCache[name];
         if(cachedSetting !== undefined)
@@ -28,7 +28,7 @@ async function readSetting(name, defaultValue) {
     });
 }
 
-async function writeSetting(name, value) {
+function writeSetting(name, value) {
     return new Promise(async (accept, reject) => {
         GM.setValue(name, value).then(() => {
             settingsCache[name] = value;
@@ -113,6 +113,9 @@ async function applyTheme() {
     });
   
   
+  	//custom CSS for settings page
+  	style.innerHTML += ".collapsed {display: none;}"; //table tr:nth-child(2n+1) 
+  
     
     document.addEventListener("DOMContentLoaded", function(e) {
       
@@ -120,16 +123,20 @@ async function applyTheme() {
       
 
         const stylesheetElement = document.querySelector("link[rel=stylesheet][type=\"text/css\"][href*=\"\/\/css\/\"]");
-        /**
+
         const stylesheetRules = stylesheetElement.sheet.rules;
-      
+      	
+      	//remove CSS rule for background color of every other item in the settings page so we can replace it with our own
       	for (const item of stylesheetRules) {
-        		if(item.selectorText === ".awesomplete > ul > li:hover, .awesomplete > ul > li[aria-selected=\"true\"]") {
-            		item.style.removeProperty("color");
+        		if(item.selectorText === "table tr:nth-child(2n+1)") {
+            		item.style.removeProperty("background-color");
                 console.log(item.style);
             }
         }
-        **/
+      	
+      	//alternating settings items only show those not collapsed
+      	style.innerHTML += "table tr:nth-child(2n+1 of :not(.collapsed)) {background: rgba(50, 50, 50, 0.1);}";
+
         
         //mobile only settings
         if(new URL(stylesheetElement.href).pathname === "//css/mobile.css") {
@@ -151,23 +158,29 @@ async function applyTheme() {
 const getFilters = new Promise((resolve, reject) => {
     const filters = [];
     const enabledPromises = [];
-    readSetting("filterLists", "{\"filters\": []}").then((filterLists) => {
+    readSetting("filterLists", "{\"filters\": [], \"groups\": []}").then((filterLists) => {
         for(const item of JSON.parse(filterLists).filters) {
             const enabledPromise = readSetting("settings.filterLists." + item.id, item.default);
             enabledPromises.push(enabledPromise);
             enabledPromise.then((enabled) => {
                     filters.push({
-                        "id": item.id,
-                        "name": item.name,
-                        "description": item.description,
-                        "blacklist": item.blacklist,
+                        "id":             item.id,
+                        "name":           item.name,
+                        "description":    item.description,
+                        "group":          item.group,
+                        "blacklist":      item.blacklist,
                         "regexBlacklist": item.regexBlacklist,
-                        "enabled": enabled
+                        "enabled":        enabled
                     });
             
             });
         }
-        Promise.all(enabledPromises).then(() => {resolve(filters)});
+        Promise.all(enabledPromises).then(() => {
+            resolve({
+                "groups": JSON.parse(filterLists).groups,
+                "filters": filters
+            });
+        });
     });
 });
 
@@ -195,7 +208,9 @@ async function getSettings() {
             }
         }
     };
+  	
   
+  	const filterListGroups = {}
     getFilters.then((arr) => {settings.filters = arr;})
     
   
@@ -221,7 +236,6 @@ function createRow(name, desc, data) {
     th.width = "15%";
   
     const label = document.createElement("label");
-    label.classList.add("block");
     label.innerHTML = name;
     th.appendChild(label);
   
@@ -294,7 +308,16 @@ async function generateSettingsPage() {
         mobileLayoutCheckbox.type = "checkbox";
         tbody.appendChild(createRow("Mobile Layout Beta","Enable or disable mobile layout, this will only work on mobile devices.",mobileLayoutCheckbox));
       
-        await settings.mobileLayout.then((checked) => mobileLayoutCheckbox.checked = checked); 
+        await settings.mobileLayout.then((checked) => mobileLayoutCheckbox.checked = checked);
+      
+      
+        /**for(const item of settings.filters.filters) {
+            const checkbox = document.createElement("input");
+            filterCheckboxes.push({checkbox: checkbox, id: item.id});
+            checkbox.type = "checkbox";
+            checkbox.checked = item.enabled;
+            tbody.appendChild(createRow(item.name, item.description, checkbox));
+        }**/
       
       
       
@@ -344,13 +367,75 @@ async function generateSettingsPage() {
         filterListsHeader.appendChild(filterListsData);
         tbody.appendChild(filterListsHeader);
       
+      
+      	const groupedFilterLists = {};
+      	const groupNames = [];
+      
         const filterCheckboxes = [];
-        for(const item of settings.filters) {
-            const checkbox = document.createElement("input");
-            filterCheckboxes.push({checkbox: checkbox, id: item.id});
-            checkbox.type = "checkbox";
-            checkbox.checked = await item.enabled;
-            tbody.appendChild(createRow(item.name, item.description, checkbox));
+        for(const group of settings.filters.groups) {
+        		groupedFilterLists[group.id] = {
+            		"name" : group.name,
+                "filters": []
+            };
+          	groupNames.push(group.id); //The entries in an object are not ordered, but they are in an array. An array is used to preserve the correct ordering of groups.
+        }
+      
+      
+        for(const item of settings.filters.filters) {
+            groupedFilterLists[item.group].filters.push(item);
+        }
+      	
+      	for(const group of groupNames) {
+          
+            //create header
+          	const groupHeader = document.createElement("tr");
+            groupHeader.style.textAlign = "center";
+          
+            const groupHeaderData = document.createElement("td");
+            groupHeaderData.colSpan = 2;
+          
+          	const groupHeaderLabel = document.createElement("label");
+            groupHeaderLabel.style.display =  "flex";
+    				groupHeaderLabel.style.justifyContent = "center";
+            groupHeaderLabel.innerHTML = "<h6>" + groupedFilterLists[group].name + "</h6>";
+          
+            const collapseButton = document.createElement("p");
+            collapseButton.style.marginLeft = "7px";
+            collapseButton.style.userSelect = "none";
+            collapseButton.style.cursor = "pointer";
+            collapseButton.innerHTML = "▶"; //▼
+          
+            groupHeaderLabel.appendChild(collapseButton);
+            groupHeaderData.appendChild(groupHeaderLabel);
+            groupHeader.appendChild(groupHeaderData);
+            tbody.appendChild(groupHeader);
+
+          
+            //expand/collapse group
+          	let collapsed = true;
+          	collapseButton.addEventListener("click", function() {
+            		collapsed = !collapsed;
+                collapseButton.innerHTML = collapsed ? "▶" : "▼";
+            });
+          
+          
+          	
+          	for(const item of groupedFilterLists[group].filters) {
+            	  const checkbox = document.createElement("input");
+            	  filterCheckboxes.push({checkbox: checkbox, id: item.id});
+            	  checkbox.type = "checkbox";
+            		checkbox.checked = item.enabled;
+              	const row = createRow(item.name, item.description, checkbox);
+                row.classList.add("collapsed");
+                collapseButton.addEventListener("click", function() {
+                    if(collapsed) {
+                    		row.classList.add("collapsed");
+                    } else {
+                    		row.classList.remove("collapsed");
+                    }
+                });
+            		tbody.appendChild(row);
+        		}
         }
 
       
@@ -575,7 +660,7 @@ async function updateCookies() {
         if(compiledBlacklist.length === 1 && compiledBlacklist[0] === "")
             compiledBlacklist = "";
         getFilters.then((filters) => {
-            for (const item of filters) {
+            for (const item of filters.filters) {
                 if(!item.enabled) continue;
                 if(compiledBlacklist[compiledBlacklist.length - 1] !== "")
                     compiledBlacklist += " ";
@@ -641,7 +726,7 @@ async function applyRegexBlacklist() {
 
         //same thing but with each regex in the filter lists
         await getFilters.then((filters) => {
-            for (const item of filters) {
+            for (const item of filters.filters) {
                 if(!item.enabled) continue;
                 for(const image of images) {
 
