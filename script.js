@@ -130,7 +130,6 @@ async function applyTheme() {
       	for (const item of stylesheetRules) {
         		if(item.selectorText === "table tr:nth-child(2n+1)") {
             		item.style.removeProperty("background-color");
-                console.log(item.style);
             }
         }
       	
@@ -594,6 +593,8 @@ async function generateFavoritesPage() {
             const img = document.createElement("img");
             img.classList.add("preview");
             img.src = favorite.thumbnail;
+            if(favorite.isVideo)
+                img.style.border = "3px solid rgb(0, 0, 255)";
           
             a.appendChild(img);
             thumb.appendChild(a);
@@ -789,8 +790,13 @@ async function updatePostView() {
             const id = Number(url.searchParams.get("id"));
             const imgUrlParts = new URL(document.querySelector('meta[property="og:image"]').content).pathname.split("/");
             const thumbnail = "https://wimg.rule34.xxx/thumbnails/" + imgUrlParts[3] +"/thumbnail_" + imgUrlParts[4].replace(/\..+/, ".jpg");
+          	const isVideo = document.getElementById("gelcomVideoContainer") !== null;
           
-            const item      = {id: id, thumbnail: thumbnail};
+            const item      = {
+              "id": id,
+              "thumbnail": thumbnail,
+              "isVideo": isVideo
+            };
           
           
             const favorite_ids = [];
